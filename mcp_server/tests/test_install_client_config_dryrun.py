@@ -22,4 +22,3 @@ def test_install_uninstall_dry_run(tmp_path: Path, monkeypatch):
     # Dry-run uninstall should also return True and not fail
     ok = ic.uninstall_windbg_mcp(str(cfg_path), quiet=False, dry_run=True)
     assert ok is True
-

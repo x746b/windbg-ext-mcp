@@ -3,27 +3,34 @@ Shared utilities for WinDbg MCP tools.
 
 This module contains helper functions and utilities used across multiple tool files.
 """
+
 import logging
 from typing import Dict, Any, List, Optional
 
-from core.communication import send_command
-from core.performance import OptimizationLevel
+from mcp_server.core.communication import send_command
+from mcp_server.core.performance import OptimizationLevel
 
 
 def detect_kernel_mode() -> bool:
     """Return True if the target is kernel-mode, else False."""
     try:
-        from core.execution.timeout_resolver import resolve_timeout
-        from config import DebuggingMode
+        from mcp_server.core.execution.timeout_resolver import resolve_timeout
+        from mcp_server.config import DebuggingMode
 
         timeout_ms = resolve_timeout(".effmach", DebuggingMode.VM_NETWORK)
         result = send_command(".effmach", timeout_ms=timeout_ms)
-        if result and any(x in result.lower() for x in ["x64_kernel", "x86_kernel", "kernel mode"]):
+        if result and any(
+            x in result.lower() for x in ["x64_kernel", "x86_kernel", "kernel mode"]
+        ):
             return True
 
         timeout_ms = resolve_timeout("!pcr", DebuggingMode.VM_NETWORK)
         result = send_command("!pcr", timeout_ms=timeout_ms)
-        if result and not result.startswith("Error:") and "is not a recognized" not in result:
+        if (
+            result
+            and not result.startswith("Error:")
+            and "is not a recognized" not in result
+        ):
             return True
 
         return False
@@ -44,13 +51,17 @@ def get_command_suggestions(command: str, result: str) -> Optional[List[str]]:
             suggestions.append("Verify command syntax in WinDbg docs")
 
     if "access denied" in low:
-        suggestions.append("Command may require elevated privileges or different context")
+        suggestions.append(
+            "Command may require elevated privileges or different context"
+        )
         suggestions.append("Switch to the appropriate process/thread context")
 
     return suggestions or None
 
 
-def get_performance_recommendations(perf_report: Dict[str, Any], async_stats: Dict[str, Any]) -> List[str]:
+def get_performance_recommendations(
+    perf_report: Dict[str, Any], async_stats: Dict[str, Any]
+) -> List[str]:
     """Generate short performance recommendations from metrics."""
     rec: List[str] = []
 
@@ -74,9 +85,17 @@ def get_performance_recommendations(perf_report: Dict[str, Any], async_stats: Di
 def get_optimization_effects(level: OptimizationLevel) -> List[str]:
     """Return human text for optimization level effects."""
     if level == OptimizationLevel.NONE:
-        return ["No optimization", "Direct command execution", "No caching or compression"]
+        return [
+            "No optimization",
+            "Direct command execution",
+            "No caching or compression",
+        ]
     if level == OptimizationLevel.BASIC:
-        return ["Basic result caching", "Simple timeout optimization", "Minimal overhead"]
+        return [
+            "Basic result caching",
+            "Simple timeout optimization",
+            "Minimal overhead",
+        ]
     if level == OptimizationLevel.AGGRESSIVE:
         return [
             "Intelligent result caching with TTL",
@@ -133,9 +152,15 @@ def get_benchmark_recommendations(results: Dict[str, Any]) -> List[str]:
         rec.append("Commands are running slowly — check network and VM performance")
 
     if summary.get("total_commands", 0) > 5:
-        rec.append("Multiple commands tested — consider async_manager for parallel execution")
+        rec.append(
+            "Multiple commands tested — consider async_manager for parallel execution"
+        )
 
-    cache_hits = sum(1 for r in results.get("results", []) if r.get("metadata", {}).get("cached", False))
+    cache_hits = sum(
+        1
+        for r in results.get("results", [])
+        if r.get("metadata", {}).get("cached", False)
+    )
     if cache_hits > 0:
         rec.append(f"{cache_hits} commands served from cache — optimization is working")
 
@@ -157,15 +182,18 @@ def get_async_insights(stats: Dict[str, Any]) -> List[str]:
     elif success_rate > 0.7:
         insights.append(f"Good async success rate: {success_rate:.1%}")
     else:
-        insights.append(f"Low async success rate: {success_rate:.1%} — check connection stability")
+        insights.append(
+            f"Low async success rate: {success_rate:.1%} — check connection stability"
+        )
 
     concurrent_peak = stats.get("concurrent_peak", 0)
     if concurrent_peak > 1:
-        insights.append(f"Peak concurrent tasks: {concurrent_peak} — parallel execution active")
+        insights.append(
+            f"Peak concurrent tasks: {concurrent_peak} — parallel execution active"
+        )
 
     avg_time = stats.get("average_execution_time", 0.0)
     if avg_time > 0:
         insights.append(f"Average task time: {avg_time:.2f}s")
 
     return insights
-

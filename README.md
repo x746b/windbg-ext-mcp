@@ -17,9 +17,9 @@ WinDbg extension + Python MCP server. Lets MCP‑compatible clients (Cursor, Cla
 
 Prereqs
 - Windows 10/11
-- WinDbg (Windows SDK “Debugging Tools for Windows”)
+- WinDbg (Windows SDK "Debugging Tools for Windows")
 - Visual Studio Build Tools (C++)
-- Python 3.10+ and Poetry 2.x
+- Python 3.11+ and uv
 
 Build the extension (Developer PowerShell for VS):
 ```powershell
@@ -33,19 +33,26 @@ Load in WinDbg:
 
 Install and run the MCP server (in root directory):
 ```powershell
-poetry install
-poetry run selftest
-poetry run mcp --list-tools
-poetry run mcp
+uv sync
+uv run selftest
+uv run mcp --list-tools
+
+# Run with stdio (default)
+uv run mcp
+
+# Run with HTTP/SSE transport
+uv run mcp --transport http://127.0.0.1:5312
 ```
 
 ## Architecture
 ```text
-MCP Client (stdio)  <—>  Python MCP Server (stdio)  <—>  WinDbg Extension (named pipe)  <—>  WinDbg/Target
-                             FastMCP                      \\.\pipe\windbgmcp                   Kernel/User
+MCP Client  <—>  Python MCP Server  <—>  WinDbg Extension (named pipe)  <—>  WinDbg/Target
+  (stdio or        zeromcp                 \\.\pipe\windbgmcp                   Kernel/User
+   HTTP/SSE)
 ```
 - The extension hosts a named‑pipe server and executes WinDbg commands safely.
 - The Python server validates inputs, resolves timeouts, and exposes tools to MCP clients.
+- Supports both stdio (default) and HTTP/SSE (`--transport http://127.0.0.1:5312`) transports.
 
 ## Usage Examples
 
@@ -118,9 +125,9 @@ Notes
 ## Sanity Check (no target required)
 Self‑test stubs the transport and validates the protocol.
 ```powershell
-poetry run selftest
+uv run selftest
 ```
-Expected: “Selftest OK”.
+Expected: "Selftest OK".
 
 ## Troubleshooting
 - Extension won’t load:
@@ -134,11 +141,12 @@ Expected: “Selftest OK”.
 ## Configuration
 - `DEBUG=true` enables verbose logs in the Python server.
 - Timeouts auto‑resolve per command type. See `mcp_server/config.py` for categories.
+- `--transport <url>` runs the server over HTTP/SSE instead of stdio. Example: `--transport http://127.0.0.1:5312`
 
 ## Tested With
 - Windows 11, MSVC v143, Windows SDK 10.0.22621.0
-- Python 3.13, Poetry 2.1
-- FastMCP 2.5.1, pywin32 310
+- Python 3.11+, uv
+- zeromcp 1.3.0, pywin32 310
 
 ## Notes
 - Build the DLL, run the server, load the extension. If WinDbg can’t load, the path is wrong or the arch doesn’t match. Fix that first.

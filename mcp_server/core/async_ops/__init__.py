@@ -23,51 +23,58 @@ async_manager = AsyncOperationManager()
 batch_executor = BatchCommandExecutor(async_manager)
 async_monitor = AsyncMonitor(async_manager)
 
+
 # Convenience functions that delegate to the global instances
-def submit_async_command(command: str, priority: TaskPriority = TaskPriority.NORMAL) -> str:
+def submit_async_command(
+    command: str, priority: TaskPriority = TaskPriority.NORMAL
+) -> str:
     """Submit a command for async execution."""
     return async_manager.submit_command(command, priority)
 
-def get_async_result(task_id: str, timeout: float = None):
+
+def get_async_result(task_id: str, timeout: float | None = None):
     """Get result of an async command."""
     return async_manager.get_task_result(task_id, timeout)
+
 
 def execute_parallel_commands(commands: list):
     """Execute multiple commands in parallel."""
     return async_manager.execute_parallel_commands(commands)
 
+
 def start_async_monitoring():
     """Start background async monitoring."""
     async_monitor.start_monitoring()
+
 
 def stop_async_monitoring():
     """Stop background async monitoring."""
     async_monitor.stop_monitoring()
 
+
 def get_async_stats():
     """Get async operation statistics."""
     return async_manager.get_statistics()
 
+
 __all__ = [
     # Core classes
     "AsyncOperationManager",
-    "AsyncTask", 
+    "AsyncTask",
     "TaskStatus",
     "TaskPriority",
     "BatchCommandExecutor",
     "AsyncMonitor",
     "TaskUtilities",
-    
     # Global instances
     "async_manager",
     "batch_executor",
     "async_monitor",
-    
     # Convenience functions
     "submit_async_command",
     "get_async_result",
     "execute_parallel_commands",
     "start_async_monitoring",
     "stop_async_monitoring",
-    "get_async_stats"
-] 
+    "get_async_stats",
+]

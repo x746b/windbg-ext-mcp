@@ -4,6 +4,7 @@ Centralized configuration for WinDbg MCP Server.
 This module contains all configuration constants, timeouts, and settings
 used throughout the application to ensure consistency and easy maintenance.
 """
+
 from enum import Enum
 from typing import Dict, Any
 from dataclasses import dataclass
@@ -74,46 +75,56 @@ SESSION_STATE_FILE = "windbg_session_state.json"
 # DEBUGGING MODE CONFIGURATION
 # ====================================================================
 
+
 class DebuggingMode(Enum):
     """Debugging mode enumeration."""
+
     LOCAL = "local"
     VM_NETWORK = "vm_network"
     VM_SERIAL = "vm_serial"
     REMOTE = "remote"
 
+
 class OptimizationLevel(Enum):
     """Performance optimization level."""
+
     DISABLED = "disabled"
     BASIC = "basic"
     MODERATE = "moderate"
     AGGRESSIVE = "aggressive"
 
+
 # ====================================================================
 # TIMEOUT CONFIGURATIONS
 # ====================================================================
 
+
 @dataclass
 class TimeoutConfig:
     """Timeout configuration for different command types."""
-    quick: int = 10000     # Quick commands (version, help, etc.)
-    normal: int = 30000    # Normal commands
-    analysis: int = 120000 # Analysis commands
-    memory: int = 90000    # Memory operations
-    execution: int = 60000 # Execution control
-    bulk: int = 180000     # Bulk operations (module lists, etc.)
+
+    quick: int = 10000  # Quick commands (version, help, etc.)
+    normal: int = 30000  # Normal commands
+    analysis: int = 120000  # Analysis commands
+    memory: int = 90000  # Memory operations
+    execution: int = 60000  # Execution control
+    bulk: int = 180000  # Bulk operations (module lists, etc.)
     large_analysis: int = 300000  # Large analysis operations
-    process_list: int = 480000    # Full process enumeration
-    streaming: int = 900000       # Streaming operations
-    symbols: int = 300000         # Symbol operations (.reload, .sympath)
-    extended: int = 1200000        # Extended operations (.reload /f, heavy symbol loading)
+    process_list: int = 480000  # Full process enumeration
+    streaming: int = 900000  # Streaming operations
+    symbols: int = 300000  # Symbol operations (.reload, .sympath)
+    extended: int = 1200000  # Extended operations (.reload /f, heavy symbol loading)
+
 
 @dataclass
 class RetryConfig:
     """Retry configuration for resilient operations."""
+
     max_attempts: int = 3
     base_delay_ms: int = 1000
     timeout_multiplier: float = 2.0
     exponential_backoff: bool = True
+
 
 # Default configurations
 DEFAULT_TIMEOUTS = TimeoutConfig()
@@ -124,7 +135,7 @@ TIMEOUT_MULTIPLIERS = {
     DebuggingMode.LOCAL: 1.0,
     DebuggingMode.VM_NETWORK: 2.0,
     DebuggingMode.VM_SERIAL: 1.5,
-    DebuggingMode.REMOTE: 2.5
+    DebuggingMode.REMOTE: 2.5,
 }
 
 # ====================================================================
@@ -158,7 +169,7 @@ KERNEL_HEALTH_COMMANDS = ["version", "!pcr", ".effmach"]
 # ====================================================================
 
 LOG_LEVEL = "INFO"
-LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Debug mode settings
 DEBUG_ENABLED = False
@@ -168,20 +179,23 @@ VERBOSE_LOGGING = False
 # UTILITY FUNCTIONS
 # ====================================================================
 
-def get_timeout_for_command(command: str, mode: DebuggingMode = DebuggingMode.LOCAL) -> int:
+
+def get_timeout_for_command(
+    command: str, mode: DebuggingMode = DebuggingMode.LOCAL
+) -> int:
     """
     Get appropriate timeout for a command based on its type and debugging mode.
-    
+
     Args:
         command: The command to check
         mode: Current debugging mode
-        
+
     Returns:
         Timeout in milliseconds
     """
     # Determine base timeout by command type
     cmd_lower = command.lower().strip()
-    
+
     # Check for extended timeout commands first (most specific)
     if any(ext_cmd in cmd_lower for ext_cmd in EXTENDED_TIMEOUT_COMMANDS):
         base_timeout = DEFAULT_TIMEOUTS.extended
@@ -214,27 +228,33 @@ def get_timeout_for_command(command: str, mode: DebuggingMode = DebuggingMode.LO
         base_timeout = DEFAULT_TIMEOUTS.execution
     else:
         base_timeout = DEFAULT_TIMEOUTS.normal
-    
+
     # Apply mode-specific multiplier
     multiplier = TIMEOUT_MULTIPLIERS.get(mode, 1.0)
     final_timeout = int(base_timeout * multiplier)
-    
+
     # Log timeout decision for debugging
     import logging
+
     logger = logging.getLogger(__name__)
-    logger.debug(f"Timeout for '{command}': {final_timeout}ms (base: {base_timeout}ms, multiplier: {multiplier})")
-    
+    logger.debug(
+        f"Timeout for '{command}': {final_timeout}ms (base: {base_timeout}ms, multiplier: {multiplier})"
+    )
+
     return final_timeout
 
-def get_retry_delay(attempt: int, base_delay: int = None, exponential: bool = None) -> float:
+
+def get_retry_delay(
+    attempt: int, base_delay: int | None = None, exponential: bool | None = None
+) -> float:
     """
     Calculate retry delay based on attempt number.
-    
+
     Args:
         attempt: Current attempt number (0-based)
         base_delay: Base delay in milliseconds (uses config default if None)
         exponential: Use exponential backoff (uses config default if None)
-        
+
     Returns:
         Delay in seconds
     """
@@ -242,32 +262,35 @@ def get_retry_delay(attempt: int, base_delay: int = None, exponential: bool = No
         base_delay = DEFAULT_RETRY_CONFIG.base_delay_ms
     if exponential is None:
         exponential = DEFAULT_RETRY_CONFIG.exponential_backoff
-    
+
     if exponential:
-        delay_ms = base_delay * (2 ** attempt)
+        delay_ms = base_delay * (2**attempt)
     else:
         delay_ms = base_delay * (attempt + 1)
-    
+
     return min(delay_ms / 1000.0, 30.0)  # Cap at 30 seconds
+
 
 def is_kernel_health_command(command: str) -> bool:
     """Check if command is suitable for kernel-mode health checking."""
     return command.lower() in KERNEL_HEALTH_COMMANDS
 
+
 # ====================================================================
 # ENVIRONMENT DETECTION
 # ====================================================================
 
+
 def load_environment_config():
     """Load configuration from environment variables."""
     import os
-    
+
     global DEBUG_ENABLED, VERBOSE_LOGGING, LOG_LEVEL
-    
+
     DEBUG_ENABLED = os.environ.get("DEBUG", "false").lower() == "true"
     VERBOSE_LOGGING = os.environ.get("VERBOSE", "false").lower() == "true"
-    
+
     if DEBUG_ENABLED:
         LOG_LEVEL = "DEBUG"
     elif VERBOSE_LOGGING:
-        LOG_LEVEL = "INFO" 
+        LOG_LEVEL = "INFO"

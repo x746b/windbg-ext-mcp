@@ -4,6 +4,7 @@ Main performance optimization coordinator.
 Coordinates caching, compression, streaming, and execution optimization.
 Simplified and cleaned of corrupted strings.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,21 +15,21 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 
-from .compression import DataCompressor
-from .streaming import StreamingHandler
-from .command_optimizer import CommandOptimizer
-from core.communication import send_command
-from core.unified_cache import (
+from mcp_server.core.performance.compression import DataCompressor
+from mcp_server.core.performance.streaming import StreamingHandler
+from mcp_server.core.performance.command_optimizer import CommandOptimizer
+from mcp_server.core.communication import send_command
+from mcp_server.core.unified_cache import (
     cache_command_result,
     get_cached_command_result,
     CacheContext,
     get_cache_stats,
     unified_cache,
 )
-from config import get_timeout_for_command, DebuggingMode
+from mcp_server.config import get_timeout_for_command, DebuggingMode
 
 # Import unified execution system
-from core.execution import execute_command as execute_unified
+from mcp_server.core.execution import execute_command as execute_unified
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +55,32 @@ class PerformanceMetrics:
 
 # Commands that should bypass optimization and execute directly
 BYPASS_OPTIMIZATION_COMMANDS = {
-    ".reload /f", ".reload -f",
-    ".restart", ".reboot",
-    "g", "p", "t",
-    "bp", "bc", "bd", "be",
-    ".attach", ".detach",
-    ".symfix", ".sympath",
+    ".reload /f",
+    ".reload -f",
+    ".restart",
+    ".reboot",
+    "g",
+    "p",
+    "t",
+    "bp",
+    "bc",
+    "bd",
+    "be",
+    ".attach",
+    ".detach",
+    ".symfix",
+    ".sympath",
 }
 
 
 class PerformanceOptimizer:
-    def __init__(self, optimization_level: OptimizationLevel = OptimizationLevel.NONE) -> None:
+    compressor: DataCompressor
+    streaming: StreamingHandler
+    command_optimizer: CommandOptimizer
+
+    def __init__(
+        self, optimization_level: OptimizationLevel = OptimizationLevel.NONE
+    ) -> None:
         self.optimization_level = optimization_level
         self.compressor = DataCompressor()
         self.streaming = StreamingHandler()
@@ -77,15 +93,27 @@ class PerformanceOptimizer:
         cmd = command.lower().strip()
         if any(b in cmd for b in BYPASS_OPTIMIZATION_COMMANDS):
             return True
-        if any(p in cmd for p in [
-            ".process /i", ".thread", "~", ".context",
-            "ed ", "ew ", "eb ", "eq ",
-            "!process", "!thread",
-        ]):
+        if any(
+            p in cmd
+            for p in [
+                ".process /i",
+                ".thread",
+                "~",
+                ".context",
+                "ed ",
+                "ew ",
+                "eb ",
+                "eq ",
+                "!process",
+                "!thread",
+            ]
+        ):
             return True
         return False
 
-    def _execute_direct_command(self, command: str, start_time: float) -> Tuple[bool, str, Dict[str, Any]]:
+    def _execute_direct_command(
+        self, command: str, start_time: float
+    ) -> Tuple[bool, str, Dict[str, Any]]:
         try:
             timeout_ms = get_timeout_for_command(command, DebuggingMode.VM_NETWORK)
             result = send_command(command, timeout_ms=timeout_ms)
@@ -129,9 +157,14 @@ class PerformanceOptimizer:
                 self.metrics.total_commands += 1
                 self.metrics.cache_miss += 1
                 self.metrics.average_command_time = (
-                    (self.metrics.average_command_time + (time.time() - start)) / 2.0
-                )
-            return {"success": ok, "result": res if ok else None, "error": None if ok else res, "metadata": meta}
+                    self.metrics.average_command_time + (time.time() - start)
+                ) / 2.0
+            return {
+                "success": ok,
+                "result": res if ok else None,
+                "error": None if ok else res,
+                "metadata": meta,
+            }
 
         # Use unified execution
         exec_result = execute_unified(command, resilient=True, optimize=True)
@@ -139,17 +172,21 @@ class PerformanceOptimizer:
             self.metrics.total_commands += 1
             self.metrics.cache_miss += 1
             self.metrics.average_command_time = (
-                (self.metrics.average_command_time + (time.time() - start)) / 2.0
-            )
+                self.metrics.average_command_time + (time.time() - start)
+            ) / 2.0
 
-        if exec_result.success:
-            cache_command_result(cache_key, exec_result.result, CacheContext.DEFAULT)
+        if exec_result.success and exec_result.result:
+            unified_cache.put(cache_key, exec_result.result, CacheContext.PERFORMANCE)
             return {
                 "success": True,
                 "result": exec_result.result,
                 "metadata": exec_result.to_dict(),
             }
-        return {"success": False, "error": exec_result.error, "metadata": exec_result.to_dict()}
+        return {
+            "success": False,
+            "error": exec_result.error,
+            "metadata": exec_result.to_dict(),
+        }
 
     def execute_command_batch(self, commands: List[str]) -> Dict[str, Any]:
         if not commands:
@@ -164,8 +201,14 @@ class PerformanceOptimizer:
         with self._lock:
             metrics = asdict(self.metrics)
         cache_hit_rate = metrics["cached_hits"] / max(metrics["total_commands"], 1)
-        compression_rate = metrics["compression_saves"] / max(metrics["total_commands"], 1)
-        bytes_saved_percent = metrics["total_bytes_saved"] / max(metrics["total_bytes_transferred"], 1) * 100
+        compression_rate = metrics["compression_saves"] / max(
+            metrics["total_commands"], 1
+        )
+        bytes_saved_percent = (
+            metrics["total_bytes_saved"]
+            / max(metrics["total_bytes_transferred"], 1)
+            * 100
+        )
 
         return {
             "optimization_level": self.optimization_level.value,
@@ -177,19 +220,27 @@ class PerformanceOptimizer:
                 "bytes_saved_percent": bytes_saved_percent,
                 "average_command_time": metrics["average_command_time"],
             },
-            "recommendations": self._get_performance_recommendations(cache_hit_rate, compression_rate, metrics),
+            "recommendations": self._get_performance_recommendations(
+                cache_hit_rate, compression_rate, metrics
+            ),
         }
 
-    def _get_performance_recommendations(self, cache_hit_rate: float, compression_rate: float, metrics: Dict[str, Any]) -> List[str]:
+    def _get_performance_recommendations(
+        self, cache_hit_rate: float, compression_rate: float, metrics: Dict[str, Any]
+    ) -> List[str]:
         rec: List[str] = []
         if cache_hit_rate < 0.3:
-            rec.append("Low cache hit rate — consider increasing cache TTL for stable commands")
+            rec.append(
+                "Low cache hit rate — consider increasing cache TTL for stable commands"
+            )
         elif cache_hit_rate > 0.8:
             rec.append("Excellent cache performance")
         if compression_rate < 0.1 and metrics["total_bytes_transferred"] > 1_000_000:
             rec.append("Consider enabling compression for large data transfers")
         if metrics["average_command_time"] > 5.0:
-            rec.append("Slow command execution — check network connectivity and VM performance")
+            rec.append(
+                "Slow command execution — check network connectivity and VM performance"
+            )
         if metrics["total_bytes_transferred"] > 10_000_000:
             rec.append("High data transfer volume — streaming optimization recommended")
         if not rec:
@@ -198,9 +249,9 @@ class PerformanceOptimizer:
 
     def optimize_for_network_debugging(self) -> None:
         if self.optimization_level != OptimizationLevel.NONE:
-            self.compressor.max_size = 300
-            self.compressor.default_ttl = 600
-        self.streaming.chunk_size = 2048
+            self.compressor.max_size = 300  # type: ignore[attr-defined]
+            self.compressor.default_ttl = 600  # type: ignore[attr-defined]
+        self.streaming.chunk_size = 2048  # type: ignore[attr-defined]
         logger.info("Applied network debugging optimizations")
 
     def clear_caches(self) -> None:
@@ -209,3 +260,6 @@ class PerformanceOptimizer:
             self.metrics = PerformanceMetrics()
         logger.info("Cleared performance caches and metrics")
 
+    def stream_large_command(self, command: str) -> Generator[Dict[str, Any], None, None]:
+        """Stream large command output in chunks."""
+        yield from self.streaming.stream_large_output(command)

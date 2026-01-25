@@ -28,4 +28,3 @@ def test_execution_and_memory():
     assert r.get_category("g") == TimeoutCategory.EXECUTION
     assert r.get_category("bp nt!NtCreateFile") == TimeoutCategory.EXECUTION
     assert r.get_category("dd 0x1000") == TimeoutCategory.MEMORY
-

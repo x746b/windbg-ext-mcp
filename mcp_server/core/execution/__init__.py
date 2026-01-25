@@ -12,13 +12,17 @@ This module provides a centralized execution layer that combines:
 from .executor import UnifiedCommandExecutor, ExecutionContext, ExecutionResult
 from .result import ExecutionMode
 from .strategies import (
-    ExecutionStrategy, DirectStrategy, ResilientStrategy, 
-    OptimizedStrategy, AsyncStrategy
+    ExecutionStrategy,
+    DirectStrategy,
+    ResilientStrategy,
+    OptimizedStrategy,
+    AsyncStrategy,
 )
 from .timeout_resolver import TimeoutResolver
 
 # Main execution instance - singleton for consistency
 _global_executor = None
+
 
 def get_executor() -> UnifiedCommandExecutor:
     """Get the global command executor instance."""
@@ -27,25 +31,26 @@ def get_executor() -> UnifiedCommandExecutor:
         _global_executor = UnifiedCommandExecutor()
     return _global_executor
 
+
 def execute_command(
     command: str,
     resilient: bool = True,
     optimize: bool = True,
     async_mode: bool = False,
-    timeout_category: str = None,
-    context: dict = None
+    timeout_category: str | None = None,
+    context: dict | None = None,
 ) -> ExecutionResult:
     """
     Convenience function for executing commands with unified execution system.
-    
+
     Args:
         command: WinDbg command to execute
         resilient: Whether to use resilient execution with retries
         optimize: Whether to use performance optimization
-        async_mode: Whether to execute asynchronously  
+        async_mode: Whether to execute asynchronously
         timeout_category: Optional timeout category override
         context: Optional execution context
-        
+
     Returns:
         ExecutionResult with success status, result, and metadata
     """
@@ -56,20 +61,21 @@ def execute_command(
         optimize=optimize,
         async_mode=async_mode,
         timeout_category=timeout_category,
-        context=context
+        context=context,
     )
 
+
 __all__ = [
-    'UnifiedCommandExecutor',
-    'ExecutionContext',
-    'ExecutionResult',
-    'ExecutionMode',
-    'ExecutionStrategy',
-    'DirectStrategy',
-    'ResilientStrategy',
-    'OptimizedStrategy',
-    'AsyncStrategy',
-    'TimeoutResolver',
-    'get_executor',
-    'execute_command',
+    "UnifiedCommandExecutor",
+    "ExecutionContext",
+    "ExecutionResult",
+    "ExecutionMode",
+    "ExecutionStrategy",
+    "DirectStrategy",
+    "ResilientStrategy",
+    "OptimizedStrategy",
+    "AsyncStrategy",
+    "TimeoutResolver",
+    "get_executor",
+    "execute_command",
 ]

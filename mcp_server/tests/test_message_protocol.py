@@ -13,4 +13,3 @@ def test_parse_response_success():
     parsed = MessageProtocol.parse_response(response_bytes)
     assert parsed["status"] == "success"
     assert parsed["output"] == "ok"
-

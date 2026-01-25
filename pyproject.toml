@@ -1,30 +1,30 @@
-[tool.poetry]
+[project]
 name = "windbg-ext-mcp"
 version = "0.1.0"
 description = "WinDbg Extension for MCP integration"
-authors = ["NadavLorber"]
+authors = [{name = "NadavLorber"}]
 readme = "README.md"
-packages = [{include = "mcp_server"}]
+requires-python = ">=3.11"
+dependencies = [
+    "pywin32==310",
+    "zeromcp>=0.1.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-# Pin to versions present in lock for reproducibility
-pywin32 = "310"
-fastmcp = "2.5.1"
-
-[tool.poetry.scripts]
+[project.scripts]
 mcp = "mcp_server.server:main"
 selftest = "mcp_server.selftest:main"
 
-[tool.poetry.group.dev.dependencies]
-pytest = ">=7.0.0"
-pytest-mock = ">=3.10.0"
-pytest-cov = ">=4.0.0"
-pytest-benchmark = ">=4.0.0"
-pytest-asyncio = ">=0.20.0"
-pytest-timeout = ">=2.1.0"
-pytest-xdist = ">=3.0.0"
-coverage = ">=7.0.0"
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-cov>=4.0.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-asyncio>=0.20.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-xdist>=3.0.0",
+    "coverage>=7.0.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["mcp_server/tests"]
@@ -63,5 +63,8 @@ exclude_lines = [
 ]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mcp_server"]
