@@ -46,6 +46,14 @@ Release/
 *.lib
 *.exp
 
+# Tracked convenience build artifact for this fork
+!artifacts/
+!artifacts/windows/
+!artifacts/windows/x64/
+!artifacts/windows/x64/Release/
+!artifacts/windows/x64/Release/windbgmcpExt.dll
+!artifacts/windows/x64/Release/windbgmcpExt.dll.sha256
+
 # IDE files
 .vs/
 .vscode/

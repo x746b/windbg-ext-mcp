@@ -26,6 +26,11 @@ Build the extension (Developer PowerShell for VS):
 msbuild extension\windbgmcpExt.sln /p:Configuration=Release /p:Platform=x64
 ```
 
+This fork also keeps a convenience x64 release build at:
+```text
+artifacts\windows\x64\Release\windbgmcpExt.dll
+```
+
 Load in WinDbg:
 ```text
 .load C:\path\to\windbgmcpExt.dll
